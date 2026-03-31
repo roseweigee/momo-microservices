@@ -31,8 +31,10 @@ jobs:
           # 取得本次 push 變更的檔案
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             CHANGED=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git diff --name-only HEAD^..HEAD 2>/dev/null || git show --name-only --format="" HEAD)
           else
-            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+            CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
           fi
 
           echo "Changed files:"
