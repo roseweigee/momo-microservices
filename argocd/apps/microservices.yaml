@@ -1,0 +1,90 @@
+# ── user-service ─────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service
+  namespace: argocd
+spec:
+  project: momo
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    targetRevision: main
+    path: k8s/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+---
+# ── order-service ────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service
+  namespace: argocd
+spec:
+  project: momo
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    targetRevision: main
+    path: k8s/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+---
+# ── shipping-service ─────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shipping-service
+  namespace: argocd
+spec:
+  project: momo
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    targetRevision: main
+    path: k8s/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+---
+# ── observability stack ──────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+spec:
+  project: momo
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    targetRevision: main
+    path: k8s/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

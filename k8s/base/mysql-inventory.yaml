@@ -1,0 +1,91 @@
+# ── mysql-inventory ───────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-inventory-pvc
+  namespace: momo-system
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-inventory
+  namespace: momo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-inventory
+  template:
+    metadata:
+      labels:
+        app: mysql-inventory
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: inventorydb
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: INVENTORY_DB_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: INVENTORY_DB_PASS
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mysql-inventory-pvc
+        - name: init-sql
+          configMap:
+            name: mysql-inventory-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-inventory
+  namespace: momo-system
+spec:
+  selector:
+    app: mysql-inventory
+  ports:
+    - port: 3306
+      targetPort: 3306

@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: momo
+  namespace: argocd
+spec:
+  description: momo microservices project
+  sourceRepos:
+    - 'https://github.com/YOUR_GITHUB_USERNAME/momo-microservices'
+  destinations:
+    - namespace: momo-system
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+---
+# App of Apps pattern：一個 ArgoCD App 管理所有子 App
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: momo-microservices
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: momo
+
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    targetRevision: main
+    path: argocd/apps   # 指向 apps/ 資料夾，ArgoCD 自動管理子 App
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

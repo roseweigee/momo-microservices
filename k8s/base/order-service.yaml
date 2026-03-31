@@ -1,0 +1,165 @@
+# ── order-service Deployment ─────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: momo-system
+  labels:
+    app: order-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # 最多多長出幾個新 Pod（超過 replicas 的數量）
+      maxUnavailable: 0  # 部署期間最多允許幾個 Pod 不可用（0 = 零停機）
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      # ✅ initContainer：等 mysql-order + redis + kafka ready
+      initContainers:
+        - name: wait-for-deps
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z mysql-order 3306; do echo "Waiting mysql-order..."; sleep 3; done
+              until nc -z redis 6379; do echo "Waiting redis..."; sleep 3; done
+              until nc -z kafka 9092; do echo "Waiting kafka..."; sleep 3; done
+              echo "All deps ready!"
+          imagePullSecrets:
+            - name: ghcr-secret
+      containers:
+        - name: order-service
+          image: momo-microservices-order-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SERVER_PORT
+              value: "8082"
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: ORDER_DB_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: ORDER_DB_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: ORDER_DB_PASS
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: REDIS_HOST
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KEYCLOAK_ISSUER_URI
+            - name: APP_SERVICES_USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: USER_SERVICE_URL
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: OTEL_SERVICE_NAME
+              value: "order-service"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              value: "1.0"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+# ── order-service Service ────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: momo-system
+spec:
+  selector:
+    app: order-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+---
+# ── order-service HPA ────────────────────────────
+# 雙十一閃購主力服務，擴容最積極
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+  namespace: momo-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 2
+  maxReplicas: 20        # 閃購最多擴到 20 個 Pod
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30    # 快速擴容
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300   # 慢速縮容
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60

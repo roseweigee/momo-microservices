@@ -1,0 +1,67 @@
+# ── box-calculation-service Deployment ───────────
+# 純計算服務，無 DB 依賴，啟動最快
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: box-calculation-service
+  namespace: momo-system
+  labels:
+    app: box-calculation-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: box-calculation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: box-calculation-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: box-calculation-service
+          image: momo-microservices-box-calculation-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8086
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+---
+# ── box-calculation-service Service ─────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: box-calculation-service
+  namespace: momo-system
+spec:
+  selector:
+    app: box-calculation-service
+  ports:
+    - port: 8086
+      targetPort: 8086

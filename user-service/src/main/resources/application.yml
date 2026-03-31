@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: k8s
+  datasource:
+    url: jdbc:mysql://localhost:3307/userdb?useSSL=false&allowPublicKeyRetrieval=true
+    username: user_svc
+    password: user_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/momo-realm
+          jwk-set-uri: http://keycloak:8080/realms/momo-realm/protocol/openid-connect/certs
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      service: user-service

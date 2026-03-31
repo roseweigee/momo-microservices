@@ -1,0 +1,147 @@
+# ── shipping-service Deployment ──────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-service
+  namespace: momo-system
+  labels:
+    app: shipping-service
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # 最多多長出幾個新 Pod（超過 replicas 的數量）
+      maxUnavailable: 0  # 部署期間最多允許幾個 Pod 不可用（0 = 零停機）
+  selector:
+    matchLabels:
+      app: shipping-service
+  template:
+    metadata:
+      labels:
+        app: shipping-service
+    spec:
+      # ✅ initContainer：等 mysql-shipping + kafka ready
+      initContainers:
+        - name: wait-for-deps
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z mysql-shipping 3306; do echo "Waiting mysql-shipping..."; sleep 3; done
+              until nc -z kafka 9092; do echo "Waiting kafka..."; sleep 3; done
+              echo "All deps ready!"
+          imagePullSecrets:
+            - name: ghcr-secret
+      containers:
+        - name: shipping-service
+          image: momo-microservices-shipping-service:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: SHIPPING_DB_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: SHIPPING_DB_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: SHIPPING_DB_PASS
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KEYCLOAK_ISSUER_URI
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: OTEL_SERVICE_NAME
+              value: "shipping-service"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              value: "1.0"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+# ── shipping-service Service ─────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-service
+  namespace: momo-system
+spec:
+  selector:
+    app: shipping-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+# ── shipping-service HPA ─────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: shipping-service-hpa
+  namespace: momo-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shipping-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
