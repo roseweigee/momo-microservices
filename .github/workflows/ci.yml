@@ -118,8 +118,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/user-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -181,8 +181,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/order-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -244,8 +244,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/shipping-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -297,8 +297,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/payment-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
@@ -348,8 +348,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/inventory-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
@@ -399,8 +399,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO }}/box-calculation-service
           tags: |
-            type=sha,prefix=,format=short
             type=raw,value=latest
+            type=sha,prefix=,format=short
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
