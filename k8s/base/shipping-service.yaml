@@ -36,8 +36,8 @@ spec:
             - name: ghcr-secret
       containers:
         - name: shipping-service
-          image: momo-microservices-shipping-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/roseweigee/momo-microservices/shipping-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8083
           env:

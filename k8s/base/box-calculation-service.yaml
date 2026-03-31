@@ -26,8 +26,8 @@ spec:
         - name: ghcr-secret
       containers:
         - name: box-calculation-service
-          image: momo-microservices-box-calculation-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/roseweigee/momo-microservices/box-calculation-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8086
           env:

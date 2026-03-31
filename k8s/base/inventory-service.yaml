@@ -35,8 +35,8 @@ spec:
               echo "All deps ready!"
       containers:
         - name: inventory-service
-          image: momo-microservices-inventory-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/roseweigee/momo-microservices/inventory-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8085
           env:

@@ -37,8 +37,8 @@ spec:
             - name: ghcr-secret
       containers:
         - name: order-service
-          image: momo-microservices-order-service:latest
-          imagePullPolicy: Never
+          image: ghcr.io/roseweigee/momo-microservices/order-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
           env:
