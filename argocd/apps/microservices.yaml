@@ -7,7 +7,7 @@ metadata:
 spec:
   project: momo
   source:
-    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
     path: k8s/base
   destination:
@@ -30,7 +30,7 @@ metadata:
 spec:
   project: momo
   source:
-    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
     path: k8s/base
   destination:
@@ -53,7 +53,7 @@ metadata:
 spec:
   project: momo
   source:
-    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
     path: k8s/base
   destination:
@@ -76,7 +76,7 @@ metadata:
 spec:
   project: momo
   source:
-    repoURL: https://github.com/YOUR_GITHUB_USERNAME/momo-microservices
+    repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
     path: k8s/observability
   destination:
