@@ -57,3 +57,4 @@ app:
   kafka:
     topic:
       order-confirmed: order.confirmed
+ 

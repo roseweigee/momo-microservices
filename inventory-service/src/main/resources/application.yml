@@ -57,3 +57,4 @@ resilience4j:
         limit-refresh-period: 1s
         # 等待 token 的超時時間：0 = 立即拒絕，不排隊等待
         timeout-duration: 0s
+ 

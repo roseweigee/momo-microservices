@@ -76,3 +76,4 @@ resilience4j:
       userService:
         max-concurrent-calls: 10
         max-wait-duration: 100ms
+ 
