@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-user-init
+  namespace: momo-system
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+        id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+        user_id    VARCHAR(36)  NOT NULL UNIQUE,
+        username   VARCHAR(64)  NOT NULL UNIQUE,
+        email      VARCHAR(128) NOT NULL UNIQUE,
+        full_name  VARCHAR(128),
+        phone      VARCHAR(20),
+        address    TEXT,
+        created_at DATETIME     NOT NULL,
+        updated_at DATETIME     NOT NULL
+    );
+    INSERT INTO users (user_id, username, email, full_name, phone, address, created_at, updated_at) VALUES
+    ('usr-001', 'testuser',   'testuser@momo.com', '測試用戶', '0912345678', '台北市信義區', NOW(), NOW()),
+    ('usr-002', 'admin-user', 'admin@momo.com',    '管理員',   '0987654321', '台北市大安區', NOW(), NOW())
+    ON DUPLICATE KEY UPDATE user_id = user_id;
