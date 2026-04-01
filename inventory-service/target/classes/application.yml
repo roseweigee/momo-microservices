@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: inventory-service
+  datasource:
+    url: jdbc:mysql://localhost:3311/inventorydb?useSSL=false&allowPublicKeyRetrieval=true
+    username: inventory_svc
+    password: inventory_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  batch:
+    job:
+      enabled: false  # 不自動跑，用排程觸發
+    jdbc:
+      initialize-schema: always
+  data:
+    redis:
+      host: redis
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/momo-realm
+          jwk-set-uri: http://keycloak:8080/realms/momo-realm/protocol/openid-connect/certs
+
+server:
+  port: 8085
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://jaeger:4318/v1/traces
+
+# ── Resilience4j Rate Limiter ─────────────────
+resilience4j:
+  ratelimiter:
+    instances:
+      inventoryAllocate:
+        # 每個更新週期允許的最大請求數
+        limit-for-period: 50
+        # 更新週期：1 秒
+        limit-refresh-period: 1s
+        # 等待 token 的超時時間：0 = 立即拒絕，不排隊等待
+        timeout-duration: 0s
+ 
