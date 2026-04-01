@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: momo
+  namespace: argocd
+spec:
+  description: momo microservices project
+  sourceRepos:
+    - 'https://github.com/roseweigee/momo-microservices'
+  destinations:
+    - namespace: momo-system
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service-gke
+  namespace: argocd
+spec:
+  project: momo
+  source:
+    repoURL: https://github.com/roseweigee/momo-microservices
+    targetRevision: feature/gke-deployment
+    path: k8s/gke
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
