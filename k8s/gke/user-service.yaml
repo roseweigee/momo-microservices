@@ -37,7 +37,7 @@ spec:
               echo "mysql-user is ready!"
       containers:
         - name: user-service
-          image: ghcr.io/roseweigee/momo-microservices/user-service:f802e63
+          image: ghcr.io/roseweigee/momo-microservices/user-service:9ab8b0f
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
