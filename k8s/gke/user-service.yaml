@@ -11,8 +11,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # 最多多長出幾個新 Pod（超過 replicas 的數量）
-      maxUnavailable: 0  # 部署期間最多允許幾個 Pod 不可用（0 = 零停機）
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: user-service
@@ -21,7 +21,8 @@ spec:
       labels:
         app: user-service
     spec:
-      # ✅ initContainer：等 mysql-user ready 才啟動
+      imagePullSecrets:
+        - name: ghcr-secret
       initContainers:
         - name: wait-for-mysql
           image: busybox:1.36
@@ -34,11 +35,9 @@ spec:
                 sleep 3
               done
               echo "mysql-user is ready!"
-          imagePullSecrets:
-            - name: ghcr-secret
       containers:
         - name: user-service
-          image: ghcr.io/roseweigee/momo-microservices/user-service:4fed768
+          image: ghcr.io/roseweigee/momo-microservices/user-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
@@ -60,22 +59,11 @@ spec:
                 secretKeyRef:
                   name: momo-secret
                   key: USER_DB_PASS
-            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-              valueFrom:
-                configMapKeyRef:
-                  name: momo-config
-                  key: KEYCLOAK_ISSUER_URI
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              valueFrom:
-                configMapKeyRef:
-                  name: momo-config
-                  key: OTEL_EXPORTER_OTLP_ENDPOINT
-            - name: OTEL_SERVICE_NAME
-              value: "user-service"
             - name: SPRING_PROFILES_ACTIVE
               value: "k8s"
-            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
-              value: "1.0"
+            # Keycloak 和 OTEL 在 GKE 先停用
+            - name: SPRING_AUTOCONFIGURE_EXCLUDE
+              value: "org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration"
           readinessProbe:
             httpGet:
               path: /actuator/health
