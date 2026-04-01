@@ -21,6 +21,8 @@ kind: Application
 metadata:
   name: user-service-gke
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: momo
   source:
@@ -36,3 +38,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
