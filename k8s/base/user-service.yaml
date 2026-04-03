@@ -38,7 +38,7 @@ spec:
             - name: ghcr-secret
       containers:
         - name: user-service
-          image: ghcr.io/roseweigee/momo-microservices/user-service:1f21583
+          image: ghcr.io/roseweigee/momo-microservices/user-service:2845f01
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
