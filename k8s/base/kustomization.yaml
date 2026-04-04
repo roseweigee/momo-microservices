@@ -16,4 +16,6 @@ resources:
   - payment-service.yaml
   - inventory-service.yaml
   - box-calculation-service.yaml
-  - ingress.yaml
+  - momo-gateway.yaml
+  - keycloak-db.yaml
+  - keycloak.yaml

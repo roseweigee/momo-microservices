@@ -1,0 +1,205 @@
+# =============================================================
+# keycloak.yaml
+# Keycloak 本體
+# 包含: Secret(admin帳密), ConfigMap(realm-export), Deployment, Service
+# 注意: HTTPRoute 已整合在 momo-gateway.yaml，此檔不重複定義
+# =============================================================
+
+---
+# 1. Secret - Keycloak Admin 帳密
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-admin-secret
+  namespace: momo-system
+type: Opaque
+stringData:
+  KEYCLOAK_ADMIN: admin
+  KEYCLOAK_ADMIN_PASSWORD: admin
+
+---
+# 2. ConfigMap - realm-export.json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: momo-system
+data:
+  realm-export.json: |
+    {
+      "realm": "momo-realm",
+      "enabled": true,
+      "sslRequired": "none",
+      "accessTokenLifespan": 3600,
+      "clients": [
+        {
+          "clientId": "momo-client",
+          "enabled": true,
+          "publicClient": false,
+          "secret": "momo-client-secret",
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "standardFlowEnabled": true,
+          "redirectUris": [
+            "http://localhost/*",
+            "https://localhost/*",
+            "https://auth.example.com/*"
+          ],
+          "webOrigins": ["*"]
+        }
+      ],
+      "users": [
+        {
+          "username": "testuser",
+          "enabled": true,
+          "email": "testuser@momo.com",
+          "firstName": "Test",
+          "lastName": "User",
+          "credentials": [
+            { "type": "password", "value": "password", "temporary": false }
+          ],
+          "realmRoles": ["user"]
+        },
+        {
+          "username": "admin-user",
+          "enabled": true,
+          "email": "admin@momo.com",
+          "firstName": "Admin",
+          "lastName": "User",
+          "credentials": [
+            { "type": "password", "value": "admin123", "temporary": false }
+          ],
+          "realmRoles": ["user", "admin"]
+        }
+      ],
+      "roles": {
+        "realm": [
+          { "name": "user",  "description": "Regular user" },
+          { "name": "admin", "description": "Administrator" }
+        ]
+      },
+      "identityProviders": [
+        {
+          "alias": "google",
+          "displayName": "Google",
+          "providerId": "google",
+          "enabled": true,
+          "trustEmail": true,
+          "storeToken": false,
+          "addReadTokenRoleOnCreate": false,
+          "firstBrokerLoginFlowAlias": "first broker login",
+          "config": {
+            "clientId":     "YOUR_GOOGLE_CLIENT_ID",
+            "clientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+            "syncMode":     "IMPORT",
+            "useJwksUrl":   "true"
+          }
+        }
+      ]
+    }
+
+---
+# 3. Keycloak Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: momo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      initContainers:
+        # 等 PostgreSQL ready 再啟動 Keycloak
+        - name: wait-for-db
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z keycloak-db 5432; do
+                echo "waiting for postgres..."; sleep 3;
+              done
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:24.0
+          args:
+            - start-dev
+            - --import-realm
+          ports:
+            - containerPort: 8080
+          env:
+            # DB 連線
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://keycloak-db:5432/keycloak
+            - name: KC_DB_USERNAME
+              value: keycloak
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-secret
+                  key: KC_DB_PASSWORD
+            # Admin 帳密
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-secret
+                  key: KEYCLOAK_ADMIN
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-secret
+                  key: KEYCLOAK_ADMIN_PASSWORD
+            # Hostname / Proxy 設定
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            - name: KC_HOSTNAME_STRICT_HTTPS
+              value: "false"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY
+              value: edge
+          volumeMounts:
+            - name: realm-config
+              mountPath: /opt/keycloak/data/import
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        - name: realm-config
+          configMap:
+            name: keycloak-realm-config
+
+---
+# 4. Keycloak Service (ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: momo-system
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
