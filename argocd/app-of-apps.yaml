@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
-    path: k8s/argocd/apps
+    path: k8s/base
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
