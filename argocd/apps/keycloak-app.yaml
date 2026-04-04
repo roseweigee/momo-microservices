@@ -1,4 +1,3 @@
-# k8s/argocd/keycloak-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,19 +5,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-
   source:
     repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
-    path: k8s/keycloak          # 監聽這個目錄
-
+    path: k8s/base/keycloak
   destination:
     server: https://kubernetes.default.svc
     namespace: momo-system
-
   syncPolicy:
     automated:
-      prune: true               # Git 刪掉就 K8s 也刪
-      selfHeal: true            # 有人手動改 K8s 會自動還原
+      prune: true
+      selfHeal: true
     syncOptions:
-      - CreateNamespace=true    # namespace 不存在自動建立
+      - CreateNamespace=true

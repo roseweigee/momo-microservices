@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: momo-app-of-apps
+  name: momo-gateway
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/roseweigee/momo-microservices
     targetRevision: main
-    path: k8s/argocd/apps
+    path: k8s/base/gateway
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: momo-system
   syncPolicy:
     automated:
       prune: true

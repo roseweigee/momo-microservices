@@ -5,17 +5,8 @@ namespace: momo-system
 
 resources:
   - namespace.yaml
-  - configmap.yaml
   - secret.yaml
-  - mysql-init-configmap.yaml
-  - mysql.yaml
-  - mysql-inventory.yaml
-  - user-service.yaml
-  - order-service.yaml
-  - shipping-service.yaml
-  - payment-service.yaml
-  - inventory-service.yaml
-  - box-calculation-service.yaml
-  - momo-gateway.yaml
-  - keycloak-db.yaml
-  - keycloak.yaml
+  - gateway/
+  - keycloak/
+  - services/
+  - mysql/

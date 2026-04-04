@@ -1,12 +1,3 @@
-# 1. GatewayClass - 定義使用 nginx controller
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: nginx
-spec:
-  controllerName: k8s.nginx.org/nginx-gateway-controller
-
----
 # 2. Gateway - 對應原本 Ingress 的入口設定
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
