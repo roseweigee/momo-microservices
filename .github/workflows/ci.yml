@@ -130,6 +130,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.REPO }}/user-service:${GITHUB_SHA::7}"
+          git pull --rebase origin main 
           sed -i "s|image: .*user-service.*|image: ${IMAGE}|g" k8s/base/services/user-service.yaml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
