@@ -21,6 +21,8 @@ spec:
       labels:
         app: order-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       # ✅ initContainer：等 mysql-order + redis + kafka ready
       initContainers:
         - name: wait-for-deps
@@ -33,8 +35,6 @@ spec:
               until nc -z redis 6379; do echo "Waiting redis..."; sleep 3; done
               until nc -z kafka 9092; do echo "Waiting kafka..."; sleep 3; done
               echo "All deps ready!"
-          imagePullSecrets:
-            - name: ghcr-secret
       containers:
         - name: order-service
           image: ghcr.io/roseweigee/momo-microservices/order-service:latest
