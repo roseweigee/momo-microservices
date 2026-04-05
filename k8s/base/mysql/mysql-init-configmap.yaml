@@ -40,10 +40,11 @@ data:
         updated_at  DATETIME       NOT NULL
     );
     CREATE TABLE IF NOT EXISTS products (
-        product_id   VARCHAR(64)    NOT NULL UNIQUE,
-        product_name VARCHAR(128)   NOT NULL,
-        price        DECIMAL(12,2)  NOT NULL,
-        stock        INT            NOT NULL
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        product_id VARCHAR(64) NOT NULL UNIQUE,
+        product_name VARCHAR(128) NOT NULL,
+        price DECIMAL(12,2) NOT NULL,
+        stock INT NOT NULL
     );
     INSERT INTO products (product_id, product_name, price, stock) VALUES
     ('prod-001', 'iPhone 15 Pro', 35900, 100),
