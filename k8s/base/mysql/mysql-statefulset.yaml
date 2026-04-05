@@ -104,7 +104,7 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
-  clusterIP: None   # Headless Service，StatefulSet 標準做法
+
 
 ---
 # ── mysql-order ──────────────────────────────────
