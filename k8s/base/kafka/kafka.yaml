@@ -107,6 +107,8 @@ spec:
               value: "1"
             - name: KAFKA_LOG_DIRS
               value: "/var/lib/kafka/data"
+            - name: KAFKA_CLUSTER_ID
+              value: "MkU3OEVBNTcwNTJENDM2Qg"
           readinessProbe:
             tcpSocket:
               port: 9092
