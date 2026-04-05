@@ -1,66 +1,9 @@
 # =============================================================
 # kafka.yaml
-# 包含: Zookeeper + Kafka (confluentinc/cp-kafka:7.5.0)
+# apache/kafka KRaft 模式，不需要 Zookeeper
 # =============================================================
 
 ---
-# 1. Zookeeper Deployment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: zookeeper
-  namespace: momo-system
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: zookeeper
-  template:
-    metadata:
-      labels:
-        app: zookeeper
-    spec:
-      containers:
-        - name: zookeeper
-          image: confluentinc/cp-zookeeper:7.5.0
-          ports:
-            - containerPort: 2181
-          env:
-            - name: ZOOKEEPER_CLIENT_PORT
-              value: "2181"
-            - name: ZOOKEEPER_TICK_TIME
-              value: "2000"
-            - name: ZOOKEEPER_SYNC_LIMIT
-              value: "2"
-          readinessProbe:
-            tcpSocket:
-              port: 2181
-            initialDelaySeconds: 10
-            periodSeconds: 5
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "512Mi"
-              cpu: "250m"
-
----
-# 2. Zookeeper Service
-apiVersion: v1
-kind: Service
-metadata:
-  name: zookeeper
-  namespace: momo-system
-spec:
-  selector:
-    app: zookeeper
-  ports:
-    - port: 2181
-      targetPort: 2181
-
----
-# 3. Kafka Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -76,16 +19,12 @@ spec:
       labels:
         app: kafka
     spec:
-      initContainers:
-        - name: wait-for-zookeeper
-          image: busybox
-          command:
-            - sh
-            - -c
-            - until nc -z zookeeper 2181; do echo "waiting for zookeeper..."; sleep 3; done
       containers:
         - name: kafka
           image: apache/kafka:3.7.0
+          ports:
+            - containerPort: 9092
+            - containerPort: 9093
           env:
             - name: KAFKA_NODE_ID
               value: "1"
@@ -100,15 +39,22 @@ spec:
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
               value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: "1@kafka:9093"
+              value: "1@localhost:9093"
             - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
               value: "1"
             - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
               value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
             - name: KAFKA_LOG_DIRS
               value: "/var/lib/kafka/data"
             - name: KAFKA_CLUSTER_ID
               value: "MkU3OEVBNTcwNTJENDM2Qg"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka/data
           readinessProbe:
             tcpSocket:
               port: 9092
@@ -122,9 +68,11 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
+      volumes:
+        - name: kafka-data
+          emptyDir: {}    # 每次重啟清空，避免舊 metadata 衝突
 
 ---
-# 4. Kafka Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -137,3 +85,6 @@ spec:
     - name: plaintext
       port: 9092
       targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
