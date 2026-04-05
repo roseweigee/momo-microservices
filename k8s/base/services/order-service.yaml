@@ -96,22 +96,22 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8082
-            initialDelaySeconds: 210
+            initialDelaySeconds: 300
             periodSeconds: 10
             failureThreshold: 10    # 加這行，給 100 秒緩衝
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8082
-            initialDelaySeconds: 240  # 比 readiness 晚一點
+            initialDelaySeconds: 360  # 比 readiness 晚一點
             periodSeconds: 15
             failureThreshold: 5
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"     # 從 512Mi 改成 1Gi
               cpu: "500m"
 ---
 # ── order-service Service ────────────────────────
