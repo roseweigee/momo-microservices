@@ -1,21 +1,18 @@
-# ── mysql-user ───────────────────────────────────
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-user-pvc
-  namespace: momo-system
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi
+# =============================================================
+# mysql.yaml
+# 包含: mysql-user, mysql-order, mysql-shipping, mysql-inventory
+# 全部改成 StatefulSet
+# =============================================================
+
 ---
+# ── mysql-user ───────────────────────────────────
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql-user
   namespace: momo-system
 spec:
+  serviceName: mysql-user
   replicas: 1
   selector:
     matchLabels:
@@ -48,7 +45,6 @@ spec:
                 secretKeyRef:
                   name: momo-secret
                   key: USER_DB_PASS
-          # ✅ readinessProbe 確保 MySQL 真正 ready 才讓 App 連線
           readinessProbe:
             exec:
               command:
@@ -84,12 +80,18 @@ spec:
               memory: "512Mi"
               cpu: "500m"
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: mysql-user-pvc
         - name: init-sql
           configMap:
             name: mysql-user-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+
 ---
 apiVersion: v1
 kind: Service
@@ -102,25 +104,17 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
+  clusterIP: None   # Headless Service，StatefulSet 標準做法
+
 ---
 # ── mysql-order ──────────────────────────────────
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-order-pvc
-  namespace: momo-system
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi
----
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql-order
   namespace: momo-system
 spec:
+  serviceName: mysql-order
   replicas: 1
   selector:
     matchLabels:
@@ -188,12 +182,18 @@ spec:
               memory: "512Mi"
               cpu: "500m"
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: mysql-order-pvc
         - name: init-sql
           configMap:
             name: mysql-order-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+
 ---
 apiVersion: v1
 kind: Service
@@ -206,25 +206,17 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
+  clusterIP: None
+
 ---
 # ── mysql-shipping ───────────────────────────────
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-shipping-pvc
-  namespace: momo-system
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi
----
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mysql-shipping
   namespace: momo-system
 spec:
+  serviceName: mysql-shipping
   replicas: 1
   selector:
     matchLabels:
@@ -292,12 +284,18 @@ spec:
               memory: "512Mi"
               cpu: "500m"
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: mysql-shipping-pvc
         - name: init-sql
           configMap:
             name: mysql-shipping-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+
 ---
 apiVersion: v1
 kind: Service
@@ -310,3 +308,103 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
+  clusterIP: None
+
+---
+# ── mysql-inventory ───────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-inventory
+  namespace: momo-system
+spec:
+  serviceName: mysql-inventory
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-inventory
+  template:
+    metadata:
+      labels:
+        app: mysql-inventory
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: inventorydb
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: INVENTORY_DB_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: momo-secret
+                  key: INVENTORY_DB_PASS
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: init-sql
+          configMap:
+            name: mysql-inventory-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-inventory
+  namespace: momo-system
+spec:
+  selector:
+    app: mysql-inventory
+  ports:
+    - port: 3306
+      targetPort: 3306
+  clusterIP: None
