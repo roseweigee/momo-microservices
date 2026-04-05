@@ -4,4 +4,3 @@ kind: Kustomization
 resources:
   - mysql-init-configmap.yaml
   - mysql-statefulset.yaml
-  - mysql-inventory.yaml
