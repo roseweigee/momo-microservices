@@ -1,0 +1,21 @@
+# observability-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: momo-observability
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/roseweigee/momo-microservices
+    targetRevision: main
+    path: k8s/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: momo-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
