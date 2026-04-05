@@ -34,7 +34,7 @@ spec:
             - name: SERVER_PORT
               value: "8086"
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k"
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1"
           readinessProbe:
             httpGet:
               path: /actuator/health
@@ -52,10 +52,10 @@ spec:
           resources:
             requests:
               memory: "256Mi"
-              cpu: "250m"
+              cpu: "100m"
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "384Mi"
+              cpu: "300m"
 ---
 # ── box-calculation-service Service ─────────────
 apiVersion: v1
