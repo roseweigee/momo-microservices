@@ -89,12 +89,14 @@ spec:
               port: 8085
             initialDelaySeconds: 120
             periodSeconds: 10
+            failureThreshold: 10    # 加這行，給 100 秒緩衝
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8085
-            initialDelaySeconds: 150
+            initialDelaySeconds: 180  # 比 readiness 晚一點
             periodSeconds: 15
+            failureThreshold: 5
           resources:
             requests:
               memory: "256Mi"
