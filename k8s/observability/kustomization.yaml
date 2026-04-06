@@ -8,3 +8,4 @@ resources:
   - grafana.yaml
   - elk.yaml
   - jaeger.yaml
+  - filebeat-rbac.yaml

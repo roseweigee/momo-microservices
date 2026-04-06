@@ -79,6 +79,9 @@ data:
         index => "%{[@metadata][index]}-%{+YYYY.MM.dd}"
       }
     }
+  env:
+    - name: LS_JAVA_OPTS
+      value: "-Xms256m -Xmx512m"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -187,6 +190,7 @@ spec:
       labels:
         app: filebeat
     spec:
+      serviceAccountName: filebeat
       containers:
         - name: filebeat
           image: docker.elastic.co/beats/filebeat:8.11.0
