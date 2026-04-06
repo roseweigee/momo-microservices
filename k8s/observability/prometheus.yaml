@@ -8,37 +8,43 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
-
+    
     scrape_configs:
-      # 抓取三個微服務的 metrics
-      - job_name: 'user-service'
-        metrics_path: '/actuator/prometheus'
-        static_configs:
-          - targets: ['user-service:8081']
-        relabel_configs:
-          - source_labels: [__address__]
-            target_label: instance
+     - job_name: 'user-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['user-service:8081']
 
-      - job_name: 'order-service'
-        metrics_path: '/actuator/prometheus'
-        static_configs:
-          - targets: ['order-service:8082']
+     - job_name: 'order-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['order-service:8082']
 
-      - job_name: 'shipping-service'
-        metrics_path: '/actuator/prometheus'
-        static_configs:
-          - targets: ['shipping-service:8083']
+     - job_name: 'shipping-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['shipping-service:8083']
 
-      # K8s 自身 metrics
-      - job_name: 'kubernetes-pods'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names: ['momo-system']
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-            action: keep
-            regex: true
+     - job_name: 'kubernetes-pods'
+       kubernetes_sd_configs:
+         - role: pod
+           namespaces:
+             names: ['momo-system']
+       relabel_configs:
+         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+           action: keep
+           regex: true
+
+     - job_name: 'kube-state-metrics'
+       static_configs:
+         - targets: ['kube-state-metrics.momo-system.svc.cluster.local:8080']
+
+     - job_name: 'kubernetes-nodes'
+       kubernetes_sd_configs:
+         - role: node
+       relabel_configs:
+         - action: labelmap
+           regex: __meta_kubernetes_node_label_(.+)
 ---
 apiVersion: apps/v1
 kind: Deployment
