@@ -5,6 +5,7 @@ import com.demo.order.kafka.OrderKafkaProducer;
 import com.demo.order.model.*;
 import com.demo.order.repository.OrderRepository;
 import com.demo.order.repository.ProductRepository;
+import com.demo.order.saga.SagaOrchestrator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class OrderService {
     private final StockRedisService stockRedisService;
     private final OrderKafkaProducer kafkaProducer;
     private final UserServiceClient userServiceClient;
+    private final SagaOrchestrator sagaOrchestrator;  // ← 新增 Saga
 
     @Transactional
     public OrderEntity createOrder(CreateOrderRequest request) {
@@ -68,15 +70,14 @@ public class OrderService {
         orderRepository.save(order);
         log.info("Order saved: {}", order.getOrderId());
 
-        // 6. 發 Kafka 事件給 shipping-service
-        kafkaProducer.sendOrderConfirmedEvent(OrderConfirmedEvent.builder()
-                .orderId(order.getOrderId())
-                .userId(order.getUserId())
-                .productId(order.getProductId())
-                .quantity(order.getQuantity())
-                .totalPrice(order.getTotalPrice())
-                .confirmedAt(LocalDateTime.now())
-                .build());
+        // 6. 啟動 Saga (不直接發 OrderConfirmedEvent)
+        sagaOrchestrator.startSaga(
+                order.getOrderId(),
+                order.getUserId(),
+                order.getProductId(),
+                order.getQuantity(),
+                order.getTotalPrice()
+        );
 
         return order;
     }
