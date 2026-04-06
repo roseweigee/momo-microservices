@@ -160,7 +160,7 @@ data:
               names:
                 - momo-system
         pipeline_stages:
-          - docker: {}
+          - cri: {}
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
