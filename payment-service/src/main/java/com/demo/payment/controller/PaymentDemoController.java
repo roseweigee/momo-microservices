@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/payments/demo")
+@RequestMapping("/api/payment/demo")
 public class PaymentDemoController {
 
     // 使用 AtomicBoolean 保證執行緒安全
