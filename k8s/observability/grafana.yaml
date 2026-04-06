@@ -14,12 +14,9 @@ data:
       - name: Jaeger
         type: jaeger
         url: http://jaeger:16686
-      - name: Elasticsearch
-        type: elasticsearch
-        url: http://elasticsearch:9200
-        jsonData:
-          index: 'momo-logs-*'
-          timeField: '@timestamp'
+      - name: Loki
+        type: loki
+        url: http://loki:3100
 ---
 apiVersion: apps/v1
 kind: Deployment

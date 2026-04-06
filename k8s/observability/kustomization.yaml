@@ -6,6 +6,6 @@ namespace: momo-system
 resources:
   - prometheus.yaml
   - grafana.yaml
-  - elk.yaml
+  - loki.yaml
   - jaeger.yaml
   - filebeat-rbac.yaml
