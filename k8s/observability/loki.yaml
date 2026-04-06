@@ -47,6 +47,10 @@ data:
       filesystem:
         directory: /data/loki/chunks
 
+    compactor:
+      working_directory: /data/loki/compactor
+      shared_store: filesystem
+
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
