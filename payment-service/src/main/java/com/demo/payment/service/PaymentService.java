@@ -135,6 +135,7 @@ public class PaymentService {
             log.warn("強制付款失敗模式（Demo）");
             return false;
         }
-        return Math.random() > 0.1;
+        //return Math.random() > 0.1;
+        return false;
     }
 }
