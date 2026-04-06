@@ -45,6 +45,10 @@ data:
        relabel_configs:
          - action: labelmap
            regex: __meta_kubernetes_node_label_(.+)
+    
+     - job_name: 'node-exporter'
+       static_configs:
+         - targets: ['node-exporter-prometheus-node-exporter.momo-system.svc.cluster.local:9100']
 ---
 apiVersion: apps/v1
 kind: Deployment
