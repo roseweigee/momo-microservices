@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
-public class AppConfig {
+public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
