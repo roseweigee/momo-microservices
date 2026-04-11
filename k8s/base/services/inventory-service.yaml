@@ -43,7 +43,7 @@ spec:
             - name: SERVER_PORT
               value: "8085"
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1""
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
@@ -131,7 +131,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: inventory-service
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 10
   metrics:
     - type: Resource
