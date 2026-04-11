@@ -17,18 +17,23 @@ public class PaymentKafkaConsumer {
     private final PaymentService paymentService;
 
     @KafkaListener(topics = "payment.process", groupId = "payment-group")
-    public void handleProcessPayment(@Payload Map<String, Object> payload) {
-        String orderId = (String) payload.get("orderId");
-        String userId = (String) payload.get("userId");
-        BigDecimal amount = new BigDecimal(payload.get("amount").toString());
+    public void handleProcessPayment(@Payload String payload) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        Map<String, Object> cmd = mapper.readValue(payload, Map.class);
+        String orderId = (String) cmd.get("orderId");
+        String userId = (String) cmd.get("userId");
+        BigDecimal amount = new BigDecimal(cmd.get("amount").toString());
         log.info("收到付款指令：orderId={}, amount={}", orderId, amount);
         paymentService.processPayment(orderId, userId, amount);
     }
 
     @KafkaListener(topics = "payment.refund", groupId = "payment-group")
-    public void handleRefundPayment(@Payload Map<String, Object> payload) {
-        String orderId = (String) payload.get("orderId");
-        String reason = (String) payload.get("reason");
+    public void handleRefundPayment(@Payload String payload) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> cmd = mapper.readValue(payload, Map.class);
+        String orderId = (String) cmd.get("orderId");
+        String reason = (String) cmd.get("reason");
         log.info("收到退款指令：orderId={}, reason={}", orderId, reason);
         paymentService.refundPayment(orderId, reason);
     }
