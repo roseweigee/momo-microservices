@@ -19,7 +19,6 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
-
   data:
     redis:
       host: localhost
