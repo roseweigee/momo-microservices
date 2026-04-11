@@ -43,16 +43,12 @@ TOKEN=$(curl -s -X POST "${BASE_URL}/realms/momo-realm/protocol/openid-connect/t
   -d "password=password" \
   | jq -r '.access_token')
 
-
-
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
   echo -e "${RED}✗ 登入失敗,請檢查 Keycloak 設定${NC}"
   exit 1
 fi
 
 echo -e "${GREEN}✓ 登入成功${NC}\n"
-echo -e "${GREEN}Access Token:${NC}"
-echo "$TOKEN"
 
 sleep 1
 
@@ -67,7 +63,7 @@ if [ "$DEMO_MODE" = "fail" ]; then
     "${BASE_URL}/api/payment/demo/force-fail/true" \
     -H "Authorization: Bearer $TOKEN")
   echo "$FORCE_FAIL_RESPONSE" | jq .
-  echo -e "${RED}⚠️  下一筆訂單付款會失敗,觸發 Saga Rollback${NC}\n"
+  echo -e "${RED}⚠️  下一筆訂單付款會失敗，觸發 Saga Rollback${NC}\n"
 elif [ "$DEMO_MODE" = "success" ]; then
   echo -e "${YELLOW}[Demo] 關閉強制失敗 (展示正常流程)...${NC}"
   FORCE_FAIL_RESPONSE=$(curl -s -X POST \
@@ -109,10 +105,8 @@ ORDER_ID=$(echo "$ORDER_RESPONSE" | jq -r '.orderId')
 echo -e "\n${GREEN}✓ 訂單已創建: ${ORDER_ID}${NC}"
 echo -e "${GREEN}✓ 庫存已扣減${NC}\n"
 
-sleep 2
-
-# Step 2: 查詢訂單狀態 (應該是 PENDING 或 CREATED)
-echo -e "${YELLOW}[Step 2] 查詢訂單初始狀態...${NC}"
+# Step 2: 立刻查詢訂單初始狀態 (應該是 CONFIRMED，Saga 尚未執行)
+echo -e "${YELLOW}[Step 2] 查詢訂單初始狀態 (Saga 尚未執行)...${NC}"
 ORDER_STATUS=$(curl -s "${BASE_URL}/api/orders/${ORDER_ID}" \
   -H "Authorization: Bearer $TOKEN")
 echo "$ORDER_STATUS" | jq .
@@ -121,20 +115,24 @@ echo -e "${GREEN}當前狀態: ${CURRENT_STATUS}${NC}\n"
 
 sleep 2
 
-# Step 3: 等待 Saga 自動執行
-echo -e "${YELLOW}[Step 3] SagaOrchestrator 自動執行付款流程...${NC}"
+# Step 3: 說明 Saga 在背景自動執行
+echo -e "${YELLOW}[Step 3] SagaOrchestrator 在背景自動執行付款流程...${NC}"
 echo -e "${GREEN}→ payment.process 事件已發送到 payment-service${NC}"
 echo -e "${GREEN}→ payment-service 處理中${NC}"
 if [ "$DEMO_MODE" = "fail" ]; then
-  echo -e "${RED}→ (強制失敗模式：付款會失敗)${NC}"
+  echo -e "${RED}→ (強制失敗模式：付款失敗，觸發 Saga 補償)${NC}"
+  echo -e "${RED}→ SagaOrchestrator 收到 payment.result (success=false)${NC}"
+  echo -e "${RED}→ 開始補償：取消訂單 → 還原 MySQL 庫存 → 還原 Redis 庫存${NC}"
 elif [ "$DEMO_MODE" = "success" ]; then
   echo -e "${GREEN}→ (正常模式：90% 機率成功)${NC}"
+  echo -e "${GREEN}→ SagaOrchestrator 收到 payment.result (success=true)${NC}"
+  echo -e "${GREEN}→ 觸發 shipping-service 建立出貨單${NC}"
 else
   echo -e "${YELLOW}→ (隨機模式：90% 機率成功)${NC}"
 fi
-echo -e "${GREEN}→ 等待 payment.result 回傳...${NC}\n"
+echo -e "${GREEN}→ 等待 Saga 執行完成...${NC}\n"
 
-sleep 5
+sleep 15
 
 # Step 4: 查詢 Saga 執行結果
 echo -e "${YELLOW}[Step 4] Saga 執行結果...${NC}"
@@ -160,9 +158,6 @@ else
 fi
 echo -e "${BLUE}========================================${NC}\n"
 
-
-
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}   Demo 完成${NC}"
 echo -e "${BLUE}========================================${NC}\n"
-
