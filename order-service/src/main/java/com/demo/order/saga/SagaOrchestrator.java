@@ -12,9 +12,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 /**
  * Saga Orchestrator（編排式 Saga）
@@ -82,8 +83,10 @@ public class SagaOrchestrator {
     @KafkaListener(topics = "payment.result", groupId = "saga-orchestrator-group")
     @Transactional
     public void handlePaymentResult(@Payload PaymentResultEvent event) {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        event = mapper.readValue(payload, PaymentResultEvent.class);
         log.info("收到付款結果：orderId={}, success={}", event.getOrderId(), event.isSuccess());
-
         SagaState state = sagaStateRepository.findById(event.getOrderId())
                 .orElseThrow(() -> new IllegalStateException("Saga state not found: " + event.getOrderId()));
 
