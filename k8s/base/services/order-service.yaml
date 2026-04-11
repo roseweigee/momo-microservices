@@ -108,7 +108,7 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "512Mi"
+              memory: "256Mi"
               cpu: "250m"
             limits:
               memory: "1Gi"     # 從 512Mi 改成 1Gi
@@ -139,7 +139,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: order-service
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 20        # 閃購最多擴到 20 個 Pod
   metrics:
     - type: Resource

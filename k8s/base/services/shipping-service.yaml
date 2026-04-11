@@ -97,7 +97,7 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "768Mi"
+              memory: "256Mi"
               cpu: "250m"
             limits:
               memory: "1Gi"
@@ -127,7 +127,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: shipping-service
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 10
   metrics:
     - type: Resource

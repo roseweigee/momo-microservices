@@ -94,7 +94,7 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "768Mi"
+              memory: "256Mi"
               cpu: "300m"
             limits:
               memory: "1Gi"
@@ -124,7 +124,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 10
   metrics:
     - type: Resource
