@@ -36,7 +36,7 @@ class SagaOrchestratorIdempotencyTest {
 
         // THEN：不應該執行任何還原動作
         verify(orderRepository, never()).findByOrderId(any());
-        verify(productRepository, never()).restoreStock(any(), any());
+        verify(productRepository, never()).restoreStock(any(), anyInt());
         verify(stockRedisService, never()).restoreStock(any(), anyInt());
     }
 
@@ -52,7 +52,7 @@ class SagaOrchestratorIdempotencyTest {
         orchestrator.compensate(state, "重複觸發測試");
 
         verify(orderRepository, never()).findByOrderId(any());
-        verify(productRepository, never()).restoreStock(any(), any());
+        verify(productRepository, never()).restoreStock(any(), anyInt());
         verify(stockRedisService, never()).restoreStock(any(), anyInt());
     }
 }
