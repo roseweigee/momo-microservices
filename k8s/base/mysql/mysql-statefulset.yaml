@@ -132,6 +132,11 @@ spec:
       containers:
         - name: mysql
           image: mysql:8.0
+          args:
+            - --innodb-buffer-pool-size=128M
+            - --innodb-log-file-size=32M
+            - --max-connections=50
+            - --performance-schema=OFF
           ports:
             - containerPort: 3306
           env:
@@ -233,6 +238,11 @@ spec:
       containers:
         - name: mysql
           image: mysql:8.0
+          args:
+            - --innodb-buffer-pool-size=128M
+            - --innodb-log-file-size=32M
+            - --max-connections=50
+            - --performance-schema=OFF
           ports:
             - containerPort: 3306
           env:
@@ -335,6 +345,11 @@ spec:
       containers:
         - name: mysql
           image: mysql:8.0
+          args:
+            - --innodb-buffer-pool-size=128M
+            - --innodb-log-file-size=32M
+            - --max-connections=50
+            - --performance-schema=OFF
           ports:
             - containerPort: 3306
           env:
@@ -436,6 +451,11 @@ spec:
       containers:
         - name: mysql
           image: mysql:8.0
+          args:
+            - --innodb-buffer-pool-size=128M
+            - --innodb-log-file-size=32M
+            - --max-connections=50
+            - --performance-schema=OFF
           ports:
             - containerPort: 3306
           env:
