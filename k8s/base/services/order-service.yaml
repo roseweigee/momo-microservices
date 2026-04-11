@@ -38,9 +38,9 @@ spec:
       containers:
         - name: order-service
 <<<<<<< HEAD
-          image: ghcr.io/roseweigee/momo-microservices/order-service:latest
+          image: ghcr.io/roseweigee/momo-microservices/order-service:42ab781
 =======
-          image: ghcr.io/roseweigee/momo-microservices/order-service:latest
+          image: ghcr.io/roseweigee/momo-microservices/order-service:42ab781
 >>>>>>> 4b50a0f (fix: order-service use latest image)
           imagePullPolicy: Always
           ports:
