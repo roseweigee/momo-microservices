@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import java.math.BigDecimal;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -15,14 +17,19 @@ public class PaymentKafkaConsumer {
     private final PaymentService paymentService;
 
     @KafkaListener(topics = "payment.process", groupId = "payment-group")
-    public void handleProcessPayment(@Payload ProcessPaymentCommand cmd) {
-        log.info("收到付款指令：orderId={}, amount={}", cmd.getOrderId(), cmd.getAmount());
-        paymentService.processPayment(cmd.getOrderId(), cmd.getUserId(), cmd.getAmount());
+    public void handleProcessPayment(@Payload Map<String, Object> payload) {
+        String orderId = (String) payload.get("orderId");
+        String userId = (String) payload.get("userId");
+        BigDecimal amount = new BigDecimal(payload.get("amount").toString());
+        log.info("收到付款指令：orderId={}, amount={}", orderId, amount);
+        paymentService.processPayment(orderId, userId, amount);
     }
 
     @KafkaListener(topics = "payment.refund", groupId = "payment-group")
-    public void handleRefundPayment(@Payload RefundPaymentCommand cmd) {
-        log.info("收到退款指令：orderId={}, reason={}", cmd.getOrderId(), cmd.getReason());
-        paymentService.refundPayment(cmd.getOrderId(), cmd.getReason());
+    public void handleRefundPayment(@Payload Map<String, Object> payload) {
+        String orderId = (String) payload.get("orderId");
+        String reason = (String) payload.get("reason");
+        log.info("收到退款指令：orderId={}, reason={}", orderId, reason);
+        paymentService.refundPayment(orderId, reason);
     }
 }
