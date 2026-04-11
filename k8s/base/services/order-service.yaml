@@ -37,7 +37,7 @@ spec:
               echo "All deps ready!"
       containers:
         - name: order-service
-          image: ghcr.io/roseweigee/momo-microservices/order-service:2355729
+          image: ghcr.io/roseweigee/momo-microservices/order-service:071425f
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
