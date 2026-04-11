@@ -34,7 +34,7 @@ spec:
               echo "mysql-payment ready!"
       containers:
         - name: payment-service
-          image: ghcr.io/roseweigee/momo-microservices/payment-service:2551245
+          image: ghcr.io/roseweigee/momo-microservices/payment-service:b94b681
           imagePullPolicy: Always
           ports:
             - containerPort: 8084
