@@ -147,6 +147,8 @@ spec:
                 secretKeyRef:
                   name: keycloak-db-secret
                   key: KC_DB_PASSWORD
+            - name: JAVA_OPTS_APPEND
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k"
             # Admin 帳密
             - name: KEYCLOAK_ADMIN
               valueFrom:
