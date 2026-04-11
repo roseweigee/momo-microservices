@@ -97,10 +97,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "256Mi"
+              memory: "768Mi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "500m"
 ---
 # ── shipping-service Service ─────────────────────

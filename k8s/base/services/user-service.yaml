@@ -94,10 +94,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "768Mi"
+              cpu: "300m"
             limits:
-              memory: "512Mi"
+              memory: 1Gi"
               cpu: "500m"
 ---
 # ── user-service Service ─────────────────────────
