@@ -376,10 +376,10 @@ spec:
               mountPath: /docker-entrypoint-initdb.d
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "200m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "500m"
       volumes:
         - name: init-sql
@@ -478,10 +478,10 @@ spec:
               mountPath: /var/lib/mysql
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "200m"
             limits:
-              memory: "512Mi"
+              memory: "1Gi"
               cpu: "500m"
   volumeClaimTemplates:
     - metadata:
