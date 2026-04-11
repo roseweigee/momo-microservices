@@ -44,7 +44,13 @@ public class StockRedisService {
     public long decreaseStock(String productId, int quantity) {
         String key = STOCK_PREFIX + productId;
         RedisScript<Long> script = RedisScript.of(DECRBY_SCRIPT, Long.class);
-        Long result = redisTemplate.execute(script, List.of(key), String.valueOf(quantity));
+        Long result = redisTemplate.execute(
+                script,
+                new org.springframework.data.redis.serializer.StringRedisSerializer(),
+                new org.springframework.data.redis.serializer.GenericToStringSerializer<>(Long.class),
+                List.of(key),
+                String.valueOf(quantity)
+        );
         log.info("Redis DECRBY: key={}, qty={}, result={}", key, quantity, result);
         return result != null ? result : -1L;
     }
