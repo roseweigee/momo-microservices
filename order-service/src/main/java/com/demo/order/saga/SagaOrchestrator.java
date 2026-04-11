@@ -82,10 +82,10 @@ public class SagaOrchestrator {
     // ── Step 2: 接收付款結果 ─────────────────────
     @KafkaListener(topics = "payment.result", groupId = "saga-orchestrator-group")
     @Transactional
-    public void handlePaymentResult(@Payload PaymentResultEvent event) {
+    public void handlePaymentResult(@Payload String payload) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
-        event = mapper.readValue(payload, PaymentResultEvent.class);
+        PaymentResultEvent event = mapper.readValue(payload, PaymentResultEvent.class);
         log.info("收到付款結果：orderId={}, success={}", event.getOrderId(), event.isSuccess());
         SagaState state = sagaStateRepository.findById(event.getOrderId())
                 .orElseThrow(() -> new IllegalStateException("Saga state not found: " + event.getOrderId()));
