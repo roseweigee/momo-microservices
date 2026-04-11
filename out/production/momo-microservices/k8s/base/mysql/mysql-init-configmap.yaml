@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-user-init
+  namespace: momo-system
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS users (
+        id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+        user_id    VARCHAR(36)  NOT NULL UNIQUE,
+        username   VARCHAR(64)  NOT NULL UNIQUE,
+        email      VARCHAR(128) NOT NULL UNIQUE,
+        full_name  VARCHAR(128),
+        phone      VARCHAR(20),
+        address    TEXT,
+        created_at DATETIME     NOT NULL,
+        updated_at DATETIME     NOT NULL
+    );
+    INSERT INTO users (user_id, username, email, full_name, phone, address, created_at, updated_at) VALUES
+    ('usr-001', 'testuser',   'testuser@momo.com', '測試用戶', '0912345678', '台北市信義區', NOW(), NOW()),
+    ('usr-002', 'admin-user', 'admin@momo.com',    '管理員',   '0987654321', '台北市大安區', NOW(), NOW())
+    ON DUPLICATE KEY UPDATE user_id = user_id;
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-order-init
+  namespace: momo-system
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS orders (
+        id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+        order_id    VARCHAR(36)    NOT NULL UNIQUE,
+        user_id     VARCHAR(64)    NOT NULL,
+        product_id  VARCHAR(64)    NOT NULL,
+        quantity    INT            NOT NULL,
+        total_price DECIMAL(12,2)  NOT NULL,
+        status      VARCHAR(20)    NOT NULL DEFAULT 'PENDING',
+        created_at  DATETIME       NOT NULL,
+        updated_at  DATETIME       NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS products (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        product_id VARCHAR(64) NOT NULL UNIQUE,
+        product_name VARCHAR(128) NOT NULL,
+        price DECIMAL(12,2) NOT NULL,
+        stock INT NOT NULL
+    );
+    INSERT INTO products (product_id, product_name, price, stock) VALUES
+    ('prod-001', 'iPhone 15 Pro', 35900, 100),
+    ('prod-002', 'AirPods Pro',    7990, 200),
+    ('prod-003', 'MacBook Air M3', 42900,  50)
+    ON DUPLICATE KEY UPDATE product_id = product_id;
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-shipping-init
+  namespace: momo-system
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS shipments (
+        id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+        shipment_id  VARCHAR(36)  NOT NULL UNIQUE,
+        order_id     VARCHAR(36)  NOT NULL,
+        user_id      VARCHAR(64)  NOT NULL,
+        status       VARCHAR(20)  NOT NULL DEFAULT 'PREPARING',
+        tracking_no  VARCHAR(64),
+        address      TEXT,
+        created_at   DATETIME     NOT NULL,
+        updated_at   DATETIME     NOT NULL
+    );
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-inventory-init
+  namespace: momo-system
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS warehouses (
+        warehouse_id VARCHAR(32)  NOT NULL PRIMARY KEY,
+        name         VARCHAR(64)  NOT NULL,
+        city         VARCHAR(20),
+        latitude     DOUBLE,
+        longitude    DOUBLE,
+        type         VARCHAR(20)  NOT NULL DEFAULT 'SATELLITE'
+    );
+    CREATE TABLE IF NOT EXISTS warehouse_stock (
+        id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+        warehouse_id VARCHAR(32)   NOT NULL,
+        product_id   VARCHAR(64)   NOT NULL,
+        quantity     INT           NOT NULL DEFAULT 0,
+        updated_at   DATETIME      NOT NULL,
+        UNIQUE KEY uk_wh_prod (warehouse_id, product_id)
+    );
+    CREATE TABLE IF NOT EXISTS batch_records (
+        id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+        batch_id     VARCHAR(64)   NOT NULL UNIQUE,
+        product_id   VARCHAR(64)   NOT NULL,
+        warehouse_id VARCHAR(32)   NOT NULL,
+        location     VARCHAR(32)   NOT NULL,
+        expire_date  DATE,
+        quantity     INT           NOT NULL DEFAULT 0,
+        received_at  DATETIME      NOT NULL,
+        updated_at   DATETIME      NOT NULL,
+        INDEX idx_product_warehouse (product_id, warehouse_id),
+        INDEX idx_expire_date (expire_date)
+    );
+    INSERT INTO warehouses VALUES
+    ('WH-MAIN-TAOYUAN', '桃園主倉',   '桃園', 25.0138, 121.2145, 'MAIN'),
+    ('WH-SAT-TAIPEI',   '台北衛星倉', '台北', 25.0330, 121.5654, 'SATELLITE'),
+    ('WH-SAT-TAICHUNG', '台中衛星倉', '台中', 24.1477, 120.6736, 'SATELLITE'),
+    ('WH-SAT-KAOHSIUNG','高雄衛星倉', '高雄', 22.6273, 120.3014, 'SATELLITE')
+    ON DUPLICATE KEY UPDATE warehouse_id = warehouse_id;
+    INSERT INTO warehouse_stock (warehouse_id, product_id, quantity, updated_at) VALUES
+    ('WH-MAIN-TAOYUAN','prod-001',500,NOW()),
+    ('WH-SAT-TAIPEI',  'prod-001', 50,NOW()),
+    ('WH-SAT-TAIPEI',  'prod-002',100,NOW())
+    ON DUPLICATE KEY UPDATE quantity = VALUES(quantity);
+    INSERT INTO batch_records (batch_id,product_id,warehouse_id,location,expire_date,quantity,received_at,updated_at) VALUES
+    ('BATCH-001','prod-001','WH-SAT-TAIPEI','A-1-01','2024-06-30',10,NOW(),NOW()),
+    ('BATCH-002','prod-001','WH-SAT-TAIPEI','A-1-02','2024-12-31',20,NOW(),NOW()),
+    ('BATCH-003','prod-002','WH-SAT-TAIPEI','B-2-01',NULL,50,NOW(),NOW())
+    ON DUPLICATE KEY UPDATE batch_id = batch_id;

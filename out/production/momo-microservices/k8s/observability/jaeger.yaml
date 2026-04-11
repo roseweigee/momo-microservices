@@ -1,0 +1,55 @@
+# ── Jaeger All-in-One ────────────────────────────
+# 含 Collector + Query + UI，適合 demo 環境
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: momo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:1.52
+          ports:
+            - containerPort: 16686  # Jaeger UI
+            - containerPort: 4317   # OTLP gRPC (Spring Boot 送 trace 到這)
+            - containerPort: 4318   # OTLP HTTP
+            - containerPort: 14268  # Jaeger HTTP
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: momo-system
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - name: ui
+      port: 16686
+      targetPort: 16686
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+  type: NodePort

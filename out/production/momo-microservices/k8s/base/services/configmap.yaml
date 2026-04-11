@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: momo-config
+  namespace: momo-system
+data:
+  KEYCLOAK_ISSUER_URI: "http://keycloak:8080/realms/momo-realm"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  REDIS_HOST: "redis"
+  USER_SERVICE_URL: "http://user-service:8081"
+  # Jaeger OTLP endpoint for distributed tracing
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+  OTEL_SERVICE_NAME_USER: "user-service"
+  OTEL_SERVICE_NAME_ORDER: "order-service"
+  OTEL_SERVICE_NAME_SHIP: "shipping-service"

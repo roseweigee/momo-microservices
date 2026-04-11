@@ -1,0 +1,79 @@
+spring:
+  main:
+    allow-circular-references: true
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:mysql://localhost:3308/orderdb?useSSL=false&allowPublicKeyRetrieval=true
+    username: order_svc
+    password: order_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/momo-realm
+          jwk-set-uri: http://keycloak:8080/realms/momo-realm/protocol/openid-connect/certs
+
+server:
+  port: 8082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      service: order-service
+  health:
+    circuitbreakers:
+      enabled: true
+
+app:
+  kafka:
+    topic:
+      order-confirmed: order.confirmed
+  services:
+    user-service-url: http://localhost:8081
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      userService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        register-health-indicator: true
+  retry:
+    instances:
+      userService:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+  bulkhead:
+    instances:
+      userService:
+        max-concurrent-calls: 10
+        max-wait-duration: 100ms
+ 

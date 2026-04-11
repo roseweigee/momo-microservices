@@ -1,0 +1,94 @@
+# 2. Gateway - 對應原本 Ingress 的入口設定
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: momo-gateway
+  namespace: momo-system
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: "momo.local"
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+# 3. HTTPRoute - 對應原本 Ingress 的路由規則
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: momo-routes
+  namespace: momo-system
+spec:
+  parentRefs:
+    - name: momo-gateway
+      namespace: momo-system
+  hostnames:
+    - "momo.local"
+  rules:
+    # ── Keycloak ──────────────────────────────
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /realms/
+      backendRefs:
+        - name: keycloak
+          port: 8080
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin/
+      backendRefs:
+        - name: keycloak
+          port: 8080
+    # ── API Services ──────────────────────────
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/users
+      backendRefs:
+        - name: user-service
+          port: 8081
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/orders
+      backendRefs:
+        - name: order-service
+          port: 8082
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/shipping
+      backendRefs:
+        - name: shipping-service
+          port: 8083
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/payment
+      backendRefs:
+        - name: payment-service
+          port: 8084
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/inventory
+      backendRefs:
+        - name: inventory-service
+          port: 8085
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/box
+      backendRefs:
+        - name: box-calculation-service
+          port: 8086

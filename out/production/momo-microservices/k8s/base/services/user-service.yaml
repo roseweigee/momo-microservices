@@ -24,7 +24,7 @@ spec:
       # ✅ initContainer：等 mysql-user ready 才啟動
       initContainers:
         - name: wait-for-mysql
-          image: busybox:latest
+          image: busybox:1.36
           command:
             - sh
             - -c
@@ -46,7 +46,7 @@ spec:
             - name: SERVER_PORT
               value: "8081"
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1"
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
@@ -94,10 +94,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: "768Mi"
-              cpu: "300m"
+              memory: "256Mi"
+              cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "512Mi"
               cpu: "500m"
 ---
 # ── user-service Service ─────────────────────────

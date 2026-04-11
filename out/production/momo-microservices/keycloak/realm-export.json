@@ -1,0 +1,77 @@
+{
+  "realm": "momo-realm",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 3600,
+
+  "clients": [
+    {
+      "clientId": "momo-client",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "momo-client-secret",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "https://auth.example.com/*"
+      ],
+      "webOrigins": ["*"]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "email": "testuser@momo.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "password", "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "admin-user",
+      "enabled": true,
+      "email": "admin@momo.com",
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "admin123", "temporary": false }
+      ],
+      "realmRoles": ["user", "admin"]
+    }
+  ],
+
+  "roles": {
+    "realm": [
+      { "name": "user",  "description": "Regular user" },
+      { "name": "admin", "description": "Administrator" }
+    ]
+  },
+
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId":     "YOUR_GOOGLE_CLIENT_ID",
+        "clientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "syncMode":     "IMPORT",
+        "useJwksUrl":   "true"
+      }
+    }
+  ]
+
+
+}

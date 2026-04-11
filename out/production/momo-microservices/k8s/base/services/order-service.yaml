@@ -1,11 +1,11 @@
-# ── user-service Deployment ──────────────────────
+# ── order-service Deployment ─────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: order-service
   namespace: momo-system
   labels:
-    app: user-service
+    app: order-service
 spec:
   replicas: 1
   strategy:
@@ -15,65 +15,79 @@ spec:
       maxUnavailable: 0  # 部署期間最多允許幾個 Pod 不可用（0 = 零停機）
   selector:
     matchLabels:
-      app: user-service
+      app: order-service
   template:
     metadata:
       labels:
-        app: user-service
+        app: order-service
     spec:
-      # ✅ initContainer：等 mysql-user ready 才啟動
+      imagePullSecrets:
+        - name: ghcr-secret
+      # ✅ initContainer：等 mysql-order + redis + kafka ready
       initContainers:
-        - name: wait-for-mysql
-          image: busybox:latest
+        - name: wait-for-deps
+          image: busybox:1.36
           command:
             - sh
             - -c
             - |
-              until nc -z mysql-user 3306; do
-                echo "Waiting for mysql-user..."
-                sleep 3
-              done
-              echo "mysql-user is ready!"
-          imagePullSecrets:
-            - name: ghcr-secret
+              until nc -z mysql-order 3306; do echo "Waiting mysql-order..."; sleep 3; done
+              until nc -z redis 6379; do echo "Waiting redis..."; sleep 3; done
+              until nc -z kafka 9092; do echo "Waiting kafka..."; sleep 3; done
+              echo "All deps ready!"
       containers:
-        - name: user-service
-          image: ghcr.io/roseweigee/momo-microservices/user-service:cc932b3
+        - name: order-service
+          image: ghcr.io/roseweigee/momo-microservices/order-service:25d6482
           imagePullPolicy: Always
           ports:
-            - containerPort: 8081
+            - containerPort: 8082
           env:
             - name: SERVER_PORT
-              value: "8081"
+              value: "8082"
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1"
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_URL
+                  key: ORDER_DB_URL
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_USER
+                  key: ORDER_DB_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_PASS
+                  key: ORDER_DB_PASS
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: REDIS_HOST
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               valueFrom:
                 configMapKeyRef:
                   name: momo-config
                   key: KEYCLOAK_ISSUER_URI
+            - name: APP_SERVICES_USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: USER_SERVICE_URL
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:
                   name: momo-config
                   key: OTEL_EXPORTER_OTLP_ENDPOINT
             - name: OTEL_SERVICE_NAME
-              value: "user-service"
+              value: "order-service"
             - name: SPRING_PROFILES_ACTIVE
               value: "k8s"
             - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
@@ -81,51 +95,52 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 8081
-            initialDelaySeconds: 120
+              port: 8082
+            initialDelaySeconds: 300
             periodSeconds: 10
             failureThreshold: 10    # 加這行，給 100 秒緩衝
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: 8081
-            initialDelaySeconds: 180  # 比 readiness 晚一點
+              port: 8082
+            initialDelaySeconds: 360  # 比 readiness 晚一點
             periodSeconds: 15
             failureThreshold: 5
           resources:
             requests:
-              memory: "768Mi"
-              cpu: "300m"
+              memory: "512Mi"
+              cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "1Gi"     # 從 512Mi 改成 1Gi
               cpu: "500m"
 ---
-# ── user-service Service ─────────────────────────
+# ── order-service Service ────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
-  name: user-service
+  name: order-service
   namespace: momo-system
 spec:
   selector:
-    app: user-service
+    app: order-service
   ports:
-    - port: 8081
-      targetPort: 8081
+    - port: 8082
+      targetPort: 8082
 ---
-# ── user-service HPA ─────────────────────────────
+# ── order-service HPA ────────────────────────────
+# 雙十一閃購主力服務，擴容最積極
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: user-service-hpa
+  name: order-service-hpa
   namespace: momo-system
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: user-service
+    name: order-service
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 20        # 閃購最多擴到 20 個 Pod
   metrics:
     - type: Resource
       resource:
@@ -133,16 +148,22 @@ spec:
         target:
           type: Utilization
           averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 30
+      stabilizationWindowSeconds: 30    # 快速擴容
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300   # 慢速縮容
       policies:
         - type: Pods
           value: 2
-          periodSeconds: 30
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-        - type: Pods
-          value: 1
           periodSeconds: 60

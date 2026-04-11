@@ -1,67 +1,68 @@
-# ── user-service Deployment ──────────────────────
+# ── payment-service Deployment ───────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: payment-service
   namespace: momo-system
   labels:
-    app: user-service
+    app: payment-service
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # 最多多長出幾個新 Pod（超過 replicas 的數量）
-      maxUnavailable: 0  # 部署期間最多允許幾個 Pod 不可用（0 = 零停機）
-  selector:
-    matchLabels:
-      app: user-service
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
-        app: user-service
+        app: payment-service
     spec:
-      # ✅ initContainer：等 mysql-user ready 才啟動
+      imagePullSecrets:
+        - name: ghcr-secret
       initContainers:
         - name: wait-for-mysql
-          image: busybox:latest
+          image: busybox:1.36
           command:
             - sh
             - -c
             - |
-              until nc -z mysql-user 3306; do
-                echo "Waiting for mysql-user..."
-                sleep 3
-              done
-              echo "mysql-user is ready!"
-          imagePullSecrets:
-            - name: ghcr-secret
+              until nc -z mysql-payment 3306; do echo "Waiting mysql-payment..."; sleep 3; done
+              echo "mysql-payment ready!"
       containers:
-        - name: user-service
-          image: ghcr.io/roseweigee/momo-microservices/user-service:cc932b3
+        - name: payment-service
+          image: ghcr.io/roseweigee/momo-microservices/payment-service:ded1d52
           imagePullPolicy: Always
           ports:
-            - containerPort: 8081
+            - containerPort: 8084
           env:
             - name: SERVER_PORT
-              value: "8081"
+              value: "8084"
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0"
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1"
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_URL
+                  key: PAYMENT_DB_URL
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_USER
+                  key: PAYMENT_DB_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: momo-secret
-                  key: USER_DB_PASS
+                  key: PAYMENT_DB_PASS
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: momo-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
             - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
               valueFrom:
                 configMapKeyRef:
@@ -73,57 +74,51 @@ spec:
                   name: momo-config
                   key: OTEL_EXPORTER_OTLP_ENDPOINT
             - name: OTEL_SERVICE_NAME
-              value: "user-service"
-            - name: SPRING_PROFILES_ACTIVE
-              value: "k8s"
-            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
-              value: "1.0"
+              value: "payment-service"
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 8081
+              port: 8084
             initialDelaySeconds: 120
             periodSeconds: 10
             failureThreshold: 10    # 加這行，給 100 秒緩衝
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: 8081
+              port: 8084
             initialDelaySeconds: 180  # 比 readiness 晚一點
             periodSeconds: 15
             failureThreshold: 5
           resources:
             requests:
-              memory: "768Mi"
-              cpu: "300m"
+              memory: "256Mi"
+              cpu: "250m"
             limits:
-              memory: "1Gi"
+              memory: "512Mi"
               cpu: "500m"
 ---
-# ── user-service Service ─────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
-  name: user-service
+  name: payment-service
   namespace: momo-system
 spec:
   selector:
-    app: user-service
+    app: payment-service
   ports:
-    - port: 8081
-      targetPort: 8081
+    - port: 8084
+      targetPort: 8084
 ---
-# ── user-service HPA ─────────────────────────────
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: user-service-hpa
+  name: payment-service-hpa
   namespace: momo-system
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: user-service
+    name: payment-service
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -133,16 +128,3 @@ spec:
         target:
           type: Utilization
           averageUtilization: 60
-  behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 30
-      policies:
-        - type: Pods
-          value: 2
-          periodSeconds: 30
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-        - type: Pods
-          value: 1
-          periodSeconds: 60

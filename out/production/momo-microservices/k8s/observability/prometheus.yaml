@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: momo-system
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+     - job_name: 'user-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['user-service:8081']
+
+     - job_name: 'order-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['order-service:8082']
+
+     - job_name: 'shipping-service'
+       metrics_path: '/actuator/prometheus'
+       static_configs:
+         - targets: ['shipping-service:8083']
+
+     - job_name: 'kubernetes-pods'
+       kubernetes_sd_configs:
+         - role: pod
+           namespaces:
+             names: ['momo-system']
+       relabel_configs:
+         - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+           action: keep
+           regex: true
+
+     - job_name: 'kube-state-metrics'
+       static_configs:
+         - targets: ['kube-state-metrics.momo-system.svc.cluster.local:8080']
+
+     - job_name: 'kubernetes-nodes'
+       kubernetes_sd_configs:
+         - role: node
+       relabel_configs:
+         - action: labelmap
+           regex: __meta_kubernetes_node_label_(.+)
+    
+     - job_name: 'node-exporter'
+       static_configs:
+         - targets: ['node-exporter-prometheus-node-exporter.momo-system.svc.cluster.local:9100']
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: momo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.48.0
+          ports:
+            - containerPort: 9090
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.retention.time=7d'
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: momo-system
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+  type: NodePort

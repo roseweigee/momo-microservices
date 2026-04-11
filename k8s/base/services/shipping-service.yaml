@@ -24,7 +24,7 @@ spec:
       # ✅ initContainer：等 mysql-shipping + kafka ready
       initContainers:
         - name: wait-for-deps
-          image: busybox:1.36
+          image: busybox:latest
           command:
             - sh
             - -c

@@ -1,0 +1,71 @@
+# ── box-calculation-service Deployment ───────────
+# 純計算服務，無 DB 依賴，啟動最快
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: box-calculation-service
+  namespace: momo-system
+  labels:
+    app: box-calculation-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: box-calculation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: box-calculation-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: box-calculation-service
+          image: ghcr.io/roseweigee/momo-microservices/box-calculation-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8086
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=60.0 -Xss256k -XX:TieredStopAtLevel=1"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            failureThreshold: 10    # 加這行，給 100 秒緩衝
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 180  # 比 readiness 晚一點
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "384Mi"
+              cpu: "300m"
+---
+# ── box-calculation-service Service ─────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: box-calculation-service
+  namespace: momo-system
+spec:
+  selector:
+    app: box-calculation-service
+  ports:
+    - port: 8086
+      targetPort: 8086
