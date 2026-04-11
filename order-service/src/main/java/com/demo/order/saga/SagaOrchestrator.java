@@ -22,7 +22,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
  *
  * 完整下單流程（Orchestration）：
  *
- * Step 1: order-service 建立訂單（PENDING）
+ * Step 1: order-service 建立訂單（CONFIRMED）
  *                │
  *                ▼
  * Step 2: Orchestrator → payment.process → payment-service 付款
@@ -37,8 +37,13 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
  *                ▼
  * Step 4: 全部完成，訂單 CONFIRMED ✅
  *
+ * 冪等保護機制：
+ * - handlePaymentResult：檢查 saga_state.status != PAYMENT_REQUESTED 則跳過
+ * - compensate：檢查 saga_state.status == COMPENSATING/COMPENSATED 則跳過
+ * 利用 saga_state 本身做狀態機，不需要額外 Redis key
+ *
  * 補償順序（逆序）：
- * ⑤ 取消出貨單 → ③ 取消訂單 → ② 還原 MySQL 庫存 → ① 還原 Redis 庫存 → 退款
+ * ③ 取消訂單 → ② 還原 MySQL 庫存 → ① 還原 Redis 庫存 → 退款
  */
 @Slf4j
 @Component
@@ -55,9 +60,8 @@ public class SagaOrchestrator {
     @Transactional
     public void startSaga(String orderId, String userId, String productId,
                           Integer quantity, BigDecimal totalPrice) {
-        log.info("Saga 啟動：orderId={}", orderId);
+        log.info("[SAGA] 啟動：orderId={}", orderId);
 
-        // 記錄 Saga 狀態
         SagaState state = SagaState.builder()
                 .orderId(orderId)
                 .status(SagaState.SagaStatus.STARTED)
@@ -69,14 +73,14 @@ public class SagaOrchestrator {
                 .build();
         sagaStateRepository.save(state);
 
-        // Step 2: 發送付款指令給 payment-service
         ProcessPaymentCommand cmd = new ProcessPaymentCommand(
                 orderId, userId, totalPrice, LocalDateTime.now());
         kafkaTemplate.send("payment.process", orderId, cmd);
 
         state.setStatus(SagaState.SagaStatus.PAYMENT_REQUESTED);
+        state.setUpdatedAt(LocalDateTime.now());
         sagaStateRepository.save(state);
-        log.info("付款指令已發送：orderId={}", orderId);
+        log.info("[SAGA] 付款指令已發送：orderId={}", orderId);
     }
 
     // ── Step 2: 接收付款結果 ─────────────────────
@@ -86,32 +90,42 @@ public class SagaOrchestrator {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         PaymentResultEvent event = mapper.readValue(payload, PaymentResultEvent.class);
-        log.info("收到付款結果：orderId={}, success={}", event.getOrderId(), event.isSuccess());
+        log.info("[SAGA] 收到付款結果：orderId={}, success={}", event.getOrderId(), event.isSuccess());
+
         SagaState state = sagaStateRepository.findById(event.getOrderId())
                 .orElseThrow(() -> new IllegalStateException("Saga state not found: " + event.getOrderId()));
 
+        // ── 冪等保護 ────────────────────────────────
+        // Kafka at-least-once 可能重複投遞，只有 PAYMENT_REQUESTED 狀態才需要處理
+        if (state.getStatus() != SagaState.SagaStatus.PAYMENT_REQUESTED) {
+            log.warn("[SAGA] 重複投遞，跳過：orderId={}, currentStatus={}",
+                    event.getOrderId(), state.getStatus());
+            return;
+        }
+        // ────────────────────────────────────────────
+
         if (event.isSuccess()) {
-            // 付款成功 → Step 3: 通知 shipping-service
             state.setStatus(SagaState.SagaStatus.PAYMENT_SUCCESS);
             state.setPaymentId(event.getPaymentId());
             state.setCurrentStep("SHIPPING");
+            state.setUpdatedAt(LocalDateTime.now());
             sagaStateRepository.save(state);
 
-            // 發訂單確認事件給 shipping-service
             OrderConfirmedForShipping shipCmd = new OrderConfirmedForShipping(
                     event.getOrderId(), state.getProductId(), state.getQuantity());
             kafkaTemplate.send("order.confirmed", event.getOrderId(), shipCmd);
 
             state.setStatus(SagaState.SagaStatus.SHIPPING_REQUESTED);
+            state.setUpdatedAt(LocalDateTime.now());
             sagaStateRepository.save(state);
-            log.info("出貨指令已發送：orderId={}", event.getOrderId());
+            log.info("[SAGA] 出貨指令已發送：orderId={}", event.getOrderId());
 
         } else {
-            // 付款失敗 → 開始補償
-            log.warn("付款失敗，開始 Saga 補償：orderId={}, reason={}",
+            log.warn("[SAGA] 付款失敗，開始補償：orderId={}, reason={}",
                     event.getOrderId(), event.getFailureReason());
             state.setStatus(SagaState.SagaStatus.PAYMENT_FAILED);
             state.setFailureReason(event.getFailureReason());
+            state.setUpdatedAt(LocalDateTime.now());
             sagaStateRepository.save(state);
 
             compensate(state, "付款失敗：" + event.getFailureReason());
@@ -121,45 +135,58 @@ public class SagaOrchestrator {
     // ── 補償流程（逆序）─────────────────────────
     @Transactional
     public void compensate(SagaState state, String reason) {
-        log.warn("開始補償流程：orderId={}, reason={}", state.getOrderId(), reason);
+
+        // ── 冪等保護 ────────────────────────────────
+        // 如果補償已經在執行中或已完成，跳過，避免重複還原庫存
+        if (state.getStatus() == SagaState.SagaStatus.COMPENSATING
+                || state.getStatus() == SagaState.SagaStatus.COMPENSATED) {
+            log.warn("[SAGA] 補償已執行或執行中，跳過重複補償：orderId={}, status={}",
+                    state.getOrderId(), state.getStatus());
+            return;
+        }
+        // ────────────────────────────────────────────
+
+        log.warn("[SAGA] 開始補償流程：orderId={}, reason={}", state.getOrderId(), reason);
         state.setStatus(SagaState.SagaStatus.COMPENSATING);
+        state.setUpdatedAt(LocalDateTime.now());
         sagaStateRepository.save(state);
 
         try {
             // ③ 取消訂單
             orderRepository.findByOrderId(state.getOrderId()).ifPresent(order -> {
                 order.setStatus(OrderEntity.OrderStatus.CANCELLED);
-                order.setUpdatedAt(java.time.LocalDateTime.now());
+                order.setUpdatedAt(LocalDateTime.now());
                 orderRepository.save(order);
             });
-            log.info("訂單已取消：{}", state.getOrderId());
+            log.info("[SAGA] 訂單已取消：{}", state.getOrderId());
 
             // ② 還原 MySQL 庫存
             productRepository.restoreStock(state.getProductId(), state.getQuantity());
-            log.info("MySQL 庫存已還原：productId={}", state.getProductId());
+            log.info("[SAGA] MySQL 庫存已還原：productId={}", state.getProductId());
 
             // ① 還原 Redis 庫存
             stockRedisService.restoreStock(state.getProductId(), state.getQuantity());
-            log.info("Redis 庫存已還原：productId={}", state.getProductId());
+            log.info("[SAGA] Redis 庫存已還原：productId={}", state.getProductId());
 
             // 如果已付款，發退款指令
             if (state.getPaymentId() != null) {
                 RefundPaymentCommand refund = new RefundPaymentCommand(
                         state.getOrderId(), state.getPaymentId(), reason, LocalDateTime.now());
                 kafkaTemplate.send("payment.refund", state.getOrderId(), refund);
-                log.info("退款指令已發送：orderId={}", state.getOrderId());
+                log.info("[SAGA] 退款指令已發送：orderId={}", state.getOrderId());
             }
 
             state.setStatus(SagaState.SagaStatus.COMPENSATED);
+            state.setUpdatedAt(LocalDateTime.now());
             sagaStateRepository.save(state);
-            log.info("Saga 補償完成：orderId={}", state.getOrderId());
+            log.info("[SAGA] 補償完成：orderId={}", state.getOrderId());
 
         } catch (Exception e) {
-            // 補償失敗 → 需要人工介入
             state.setStatus(SagaState.SagaStatus.FAILED);
             state.setFailureReason("補償失敗，需人工介入：" + e.getMessage());
+            state.setUpdatedAt(LocalDateTime.now());
             sagaStateRepository.save(state);
-            log.error("Saga 補償失敗，需人工處理：orderId={}", state.getOrderId(), e);
+            log.error("[SAGA] 補償失敗，需人工處理：orderId={}", state.getOrderId(), e);
         }
     }
 }
@@ -174,8 +201,10 @@ class ProcessPaymentCommand {
     private LocalDateTime requestedAt;
 
     ProcessPaymentCommand(String orderId, String userId, BigDecimal amount, LocalDateTime requestedAt) {
-        this.orderId = orderId; this.userId = userId;
-        this.amount = amount; this.requestedAt = requestedAt;
+        this.orderId = orderId;
+        this.userId = userId;
+        this.amount = amount;
+        this.requestedAt = requestedAt;
     }
 }
 
@@ -195,7 +224,9 @@ class OrderConfirmedForShipping {
     private Integer quantity;
 
     OrderConfirmedForShipping(String orderId, String productId, Integer quantity) {
-        this.orderId = orderId; this.productId = productId; this.quantity = quantity;
+        this.orderId = orderId;
+        this.productId = productId;
+        this.quantity = quantity;
     }
 }
 
@@ -207,7 +238,9 @@ class RefundPaymentCommand {
     private LocalDateTime requestedAt;
 
     RefundPaymentCommand(String orderId, String paymentId, String reason, LocalDateTime requestedAt) {
-        this.orderId = orderId; this.paymentId = paymentId;
-        this.reason = reason; this.requestedAt = requestedAt;
+        this.orderId = orderId;
+        this.paymentId = paymentId;
+        this.reason = reason;
+        this.requestedAt = requestedAt;
     }
 }
